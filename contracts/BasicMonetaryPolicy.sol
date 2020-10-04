@@ -58,6 +58,9 @@ contract BasicMonetaryPolicy {
   }
 
   function rebase() external {
+    // todo: do not rebase more frequently than once per hour
+    // todo: update prices before rebasing
+
     // only rebase if there is a 5% difference between the price of AUX and AUSC
     uint256 highThreshold = averageAUX.mul(105).div(100);
     uint256 lowThreshold = averageAUX.mul(95).div(100);
