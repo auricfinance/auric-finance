@@ -1,5 +1,7 @@
 # Auric Network Smart Contracts
 
+## Functionality Brief
+
 The main token contract is UFragments cloned from Based Money (who cloned
 from Ampleforth). The contract will be deployed by the main address that 
 will become the deployer and will have the right to intialize the contract.
@@ -27,10 +29,17 @@ a mock LP token with a fixed supply.
 
 Governance is not implemented. It requires some clarifications.
 
-# Goerli Deployment
+## Goerli Deployment
 
 1. Test LP Token (AUSC LP UNI V2):  0xee45ff229cb500bf35f72d2e4f795e9efef5855c
 2. AUSC(M) Token: 0xC366BdbDdAE86202f34324623AFD61f87502d56B
 3. Auric Rewards SNX Pool: 0x7c239712cf362f031e31a8740ce5623b6850f298
 4. Monetary Policy: 0x31bf3af523409205437bfb1b15ecfb8d56521655
 
+## Development instructions
+
+1. Clone the repository
+2. Use `npm install` to install the dependencies
+3. Use `npx truffle build` to build the smart contracts and produce ABI
+4. Use `npx ganache-cli` and from different terminla `npm t` to run tests
+5. Use `npm run test-cov` to run test coverage
