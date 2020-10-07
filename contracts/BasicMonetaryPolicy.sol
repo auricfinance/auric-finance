@@ -70,16 +70,21 @@ contract BasicMonetaryPolicy {
       uint256 currentSupply = IERC20(ausc).totalSupply();
       uint256 desiredSupply = currentSupply.mul(averageAUSC).div(averageAUX);
       // Cannot underflow as desiredSupply > currentSupply, the result is positive
-      int256 delta = int256(desiredSupply - currentSupply); 
-      IUFragments(ausc).rebase(epoch, delta);
+      //int256 delta = int256(desiredSupply - currentSupply); 
+      uint256 delta = desiredSupply.mul(1e18).div(currentSupply).sub(1e18); 
+      IUFragments(ausc).rebase(epoch, delta, true);
+      //IUFragments(ausc).rebase(epoch, delta);
       epoch++;
     } else if (averageAUSC < lowThreshold) {
       // AUSC is too cheap, this is a negative rebase decreasing the supply
       uint256 currentSupply = IERC20(ausc).totalSupply();
       uint256 desiredSupply = currentSupply.mul(averageAUSC).div(averageAUX);
       // Cannot overflow as desiredSupply > currentSupply
-      int256 delta = int256(desiredSupply - currentSupply); 
-      IUFragments(ausc).rebase(epoch, delta);
+      //int256 delta = int256(desiredSupply - currentSupply); 
+      //IUFragments(ausc).rebase(epoch, delta);
+      // uint256 delta = uint256(currentSupply - desiredSupply); 
+      uint256 delta = uint256(1e18).sub(desiredSupply.mul(1e18).div(currentSupply)); 
+      IUFragments(ausc).rebase(epoch, delta, false);
       epoch++;
     }
     // else the price is within bounds

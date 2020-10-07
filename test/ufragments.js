@@ -1,7 +1,8 @@
-const UFragments = artifacts.require("UFragments");
+//const UFragments = artifacts.require("UFragments");
+const YAM = artifacts.require("YAM");
 const MockMonetaryPolicy = artifacts.require("MockMonetaryPolicy");
 
-contract("UFramegments Test", function (accounts) {
+contract.only("UFramegments Test", function (accounts) {
   const owner = accounts[0];
   const name = "AUSCM";
   const symbol = "AUSC";
@@ -11,8 +12,8 @@ contract("UFramegments Test", function (accounts) {
 
   describe("Basic initialization", function () {
     beforeEach(async function () {
-      fragments = await UFragments.new({ from: owner });
-      await fragments.initialize(name, symbol, owner);
+      fragments = await YAM.new({ from: owner });
+      await fragments.initialize(name, symbol, 18, owner, supply + decimalZeroes);
     });
 
     it("symbol and decimals are correct after initialization", async function () {
@@ -28,16 +29,20 @@ contract("UFramegments Test", function (accounts) {
     let monetaryPolicy;
 
     beforeEach(async function () {
-      fragments = await UFragments.new({ from: owner });
-      await fragments.initialize(name, symbol, owner);
+      //fragments = await UFragments.new({ from: owner });
+      fragments = await YAM.new({ from: owner });
+      await fragments.initialize(name, symbol, 18, owner, supply + decimalZeroes);
+      // await fragments.initialize(name, symbol, owner);
       monetaryPolicy = await MockMonetaryPolicy.new(fragments.address);
-      await fragments.setMonetaryPolicy(monetaryPolicy.address, {
+      await fragments._setRebaser(monetaryPolicy.address, {
+      //await fragments.setMonetaryPolicy(monetaryPolicy.address, {
         from: owner,
       });
     });
 
     it("setting monetary policy", async function () {
-      assert.equal(await fragments.monetaryPolicy(), monetaryPolicy.address);
+      // assert.equal(await fragments.monetaryPolicy(), monetaryPolicy.address);
+      assert.equal(await fragments.rebaser(), monetaryPolicy.address);
     });
 
     it("positive rebase", async function () {
@@ -46,6 +51,7 @@ contract("UFramegments Test", function (accounts) {
       await monetaryPolicy.recordPrice();
       await monetaryPolicy.rebase();
       const twice = "60000000";
+      console.log((await fragments.totalSupply()).toString());
       assert.equal(await fragments.totalSupply(), twice + decimalZeroes);
       assert.equal(await fragments.balanceOf(owner), twice + decimalZeroes);
     });
