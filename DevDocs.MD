@@ -152,10 +152,6 @@ before it is initialized. After this, the governor can be set inside the TimeLoc
 and the GovernorAlpha can accept its governing role. From now on, the TimeLock will
 be enforcing the rules.
 
-TODO: Test rebases with other numbers as well, not only 1/2
-TODO: Cleanup
-TODO: Test burning
-
 ## Notes to Auditors
 
 The code is greatly cloned from YAM and subsequently from Compound, and from SNX.

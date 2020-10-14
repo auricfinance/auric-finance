@@ -3,7 +3,7 @@ pragma solidity 0.5.16;
 import "@openzeppelin/contracts/token/ERC20/ERC20Capped.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20Detailed.sol";
 
-contract LPToken is ERC20, ERC20Detailed, ERC20Capped {
+contract TestToken is ERC20, ERC20Detailed, ERC20Capped {
 
   constructor() public
   ERC20Detailed("AUSC LP UNI V2", "UNI-V2", 18)

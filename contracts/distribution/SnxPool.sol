@@ -640,10 +640,98 @@ contract LPTokenWrapper {
     }
 }
 
+interface IERC20Burnable {
+    function burn(uint256 amount) external;
+}
+
+contract PoolEscrow {
+
+    using SafeERC20 for IERC20;
+    using SafeMath for uint256;
+
+    modifier onlyGovernance() {
+        require(msg.sender == governance, "only governance");
+        _;
+    }
+
+    address public shareToken;
+    address public pool;
+    address public ausc;
+    address public secondary;
+    address public development;
+    address public governancePool;
+    address public dao;
+    address public governance;
+
+    constructor(address _shareToken,
+        address _pool,
+        address _ausc,
+        address _secondary,
+        address _development,
+        address _governance,
+        address _dao) public {
+        shareToken = _shareToken;
+        pool = _pool;
+        ausc = _ausc;
+        secondary = _secondary;
+        development = _development;
+        governancePool = _governance;
+        dao = _dao;
+    }
+
+    function setSecondary(address account) external onlyGovernance {
+        secondary = account;
+    }
+
+    function setDevelopment(address account) external onlyGovernance {
+        development = account;
+    }
+
+    function setGovernancePool(address account) external onlyGovernance {
+        governancePool = account;
+    }
+
+    function setDao(address account) external onlyGovernance {
+        dao = account;
+    }
+
+    function release(address recipient, uint256 shareAmount) external {
+        require(msg.sender == pool, "only pool can release tokens");
+        IERC20(shareToken).safeTransferFrom(msg.sender, address(this), shareAmount);
+        uint256 endowment = getTokenNumber(shareAmount).mul(5).div(100);
+        uint256 reward = getTokenNumber(shareAmount);
+        if (secondary != address(0)) {
+            IERC20(ausc).safeTransfer(secondary, endowment);
+            reward = reward.sub(endowment);
+        }
+        if (development != address(0)) {
+            IERC20(ausc).safeTransfer(development, endowment);
+            reward = reward.sub(endowment);
+        }
+        if (governancePool != address(0)) {
+            IERC20(ausc).safeTransfer(governancePool, endowment);
+            reward = reward.sub(endowment);
+        }
+        if (dao != address(0)) {
+            IERC20(ausc).safeTransfer(dao, endowment);
+            reward = reward.sub(endowment);
+        }
+        IERC20(ausc).safeTransfer(recipient, reward);
+        IERC20Burnable(shareToken).burn(shareAmount);
+    }
+
+    function getTokenNumber(uint256 shareAmount) public view returns(uint256) {
+        return IERC20(ausc).balanceOf(address(this))
+            .mul(shareAmount)
+            .div(IERC20(shareToken).totalSupply());
+    }
+}
+
 contract AuricRewards is LPTokenWrapper, IRewardDistributionRecipient {
     IERC20 public snx;
     uint256 public constant DURATION = 7 days;
 
+    address public escrow;
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
     uint256 public lastUpdateTime;
@@ -696,6 +784,16 @@ contract AuricRewards is LPTokenWrapper, IRewardDistributionRecipient {
                 .add(rewards[account]);
     }
 
+    // returns the earned amount as it will be paid out by the escrow (accounting for rebases)
+    function earnedAusc(address account) public view returns (uint256) {
+        return PoolEscrow(escrow).getTokenNumber(
+            balanceOf(account)
+                .mul(rewardPerToken().sub(userRewardPerTokenPaid[account]))
+                .div(1e18)
+                .add(rewards[account])
+        );
+    }
+
     // stake visibility is public as overriding LPTokenWrapper's stake() function
     function stake(uint256 amount) public updateReward(msg.sender) {
         require(amount > 0, "Cannot stake 0");
@@ -718,7 +816,10 @@ contract AuricRewards is LPTokenWrapper, IRewardDistributionRecipient {
         uint256 reward = earned(msg.sender);
         if (reward > 0) {
             rewards[msg.sender] = 0;
-            snx.safeTransfer(msg.sender, reward);
+            // the pool is distributing placeholder tokens with fixed supply
+            snx.safeApprove(escrow, 0);
+            snx.safeApprove(escrow, reward);
+            PoolEscrow(escrow).release(msg.sender, reward);
             emit RewardPaid(msg.sender, reward);
         }
     }
@@ -728,6 +829,9 @@ contract AuricRewards is LPTokenWrapper, IRewardDistributionRecipient {
         onlyRewardDistribution
         updateReward(address(0))
     {
+        // overflow fix https://sips.synthetix.io/sips/sip-77
+        require(reward < uint256(-1) / 1e18, "amount too high");
+
         if (block.timestamp >= periodFinish) {
             rewardRate = reward.div(DURATION);
         } else {
@@ -738,6 +842,11 @@ contract AuricRewards is LPTokenWrapper, IRewardDistributionRecipient {
         lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp.add(DURATION);
         emit RewardAdded(reward);
+    }
+
+    function setEscrow(address newEscrow) external onlyOwner {
+        require(escrow == address(0), "escrow already set");
+        escrow = newEscrow;
     }
 }
 

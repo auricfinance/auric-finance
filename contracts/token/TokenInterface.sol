@@ -2,10 +2,10 @@
 
 pragma solidity 0.5.16;
 
-import "./YAMTokenStorage.sol";
-import "./YAMGovernanceStorage.sol";
+import "./TokenStorage.sol";
+import "./GovernanceStorage.sol";
 
-contract YAMTokenInterface is YAMTokenStorage, YAMGovernanceStorage {
+contract TokenInterface is TokenStorage, GovernanceStorage {
 
     /// @notice An event thats emitted when an account changes its delegate
     event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
@@ -35,16 +35,6 @@ contract YAMTokenInterface is YAMTokenStorage, YAMGovernanceStorage {
      */
     event NewRebaser(address oldRebaser, address newRebaser);
 
-    /**
-     * @notice Sets the migrator contract
-     */
-    event NewMigrator(address oldMigrator, address newMigrator);
-
-    /**
-     * @notice Sets the incentivizer contract
-     */
-    event NewIncentivizer(address oldIncentivizer, address newIncentivizer);
-
     /* - ERC20 Events - */
 
     /**
@@ -62,6 +52,7 @@ contract YAMTokenInterface is YAMTokenStorage, YAMGovernanceStorage {
      * @notice Tokens minted event
      */
     event Mint(address to, uint256 amount);
+    event Burn(address from, uint256 amount);
 
     // Public functions
     function transfer(address to, uint256 value) external returns(bool);
@@ -87,7 +78,6 @@ contract YAMTokenInterface is YAMTokenStorage, YAMGovernanceStorage {
     function mint(address to, uint256 amount) external returns (bool);
     function rebase(uint256 epoch, uint256 indexDelta, bool positive) external returns (uint256);
     function _setRebaser(address rebaser_) external;
-    function _setIncentivizer(address incentivizer_) external;
     function _setPendingGov(address pendingGov_) external;
     function _acceptGov() external;
 }

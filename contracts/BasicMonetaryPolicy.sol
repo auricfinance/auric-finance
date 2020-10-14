@@ -2,29 +2,47 @@ pragma solidity 0.5.16;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./IUFragments.sol";
+import "./IAUSC.sol";
 
 contract BasicMonetaryPolicy {
 
   using SafeMath for uint256;
 
+  uint256 public constant BASE = 1e18;
+  uint256 public constant WINDOW_SIZE = 12;
+
   address public ausc;
   uint256[] public pricesAUX = new uint256[](12);
   uint256[] public pricesAUSC = new uint256[](12);
+  uint256 public pendingAUXPrice = 0;
+  uint256 public pendingAUSCPrice = 0;
+  bool public noPending = true;
   uint256 public averageAUX;
   uint256 public averageAUSC;
   uint256 public lastUpdate;
   uint256 public frequency = 1 hours;
   uint256 public counter = 0;
-  uint256 public constant WINDOW_SIZE = 12;
   uint256 public epoch = 1;
+  address public treasury;
 
-  constructor (address token) public {
+  uint256 public lastRebase = 0;
+  uint256 public constant REBASE_DELAY = 24 hours;
+
+  constructor (address token, address _treasury) public {
     ausc = token;
+    treasury = _treasury;
+    lastRebase = block.timestamp;
   }
 
-  function recordPrice() external {
-    if (msg.sender != tx.origin) {
+  function checkRebase() external {
+    // ausc ensures that we do not have smart contracts rebasing
+    require (msg.sender == address(ausc), "only through ausc");
+    rebase();
+    recordPrice();
+  }
+
+  function recordPrice() public {
+    if (msg.sender != tx.origin && msg.sender != address(ausc)) {
       // smart contracts could manipulate data via flashloans,
       // thus we forbid them from updating the price
       return;
@@ -40,26 +58,37 @@ contract BasicMonetaryPolicy {
     uint256 priceAUSC = getPriceAUSC();
     lastUpdate = block.timestamp;
 
-    if (counter < WINDOW_SIZE) {
+    if (noPending) {
+      // we start recording with 1 hour delay
+      pendingAUXPrice = priceAUX;
+      pendingAUSCPrice = priceAUSC;
+      noPending = false;
+    } else if (counter < WINDOW_SIZE) {
       // still in the warming up phase
-      pricesAUX[counter] = priceAUX;
-      pricesAUSC[counter] = priceAUSC;
-      averageAUX = averageAUX.mul(counter).add(priceAUX).div(counter.add(1));
-      averageAUSC = averageAUSC.mul(counter).add(priceAUSC).div(counter.add(1));
+      averageAUX = averageAUX.mul(counter).add(pendingAUXPrice).div(counter.add(1));
+      averageAUSC = averageAUSC.mul(counter).add(pendingAUSCPrice).div(counter.add(1));
+      pricesAUX[counter] = pendingAUXPrice;
+      pricesAUSC[counter] = pendingAUSCPrice;
+      pendingAUXPrice = priceAUX;
+      pendingAUSCPrice = priceAUSC;
       counter++;
     } else {
       uint256 index = counter % WINDOW_SIZE;
-      averageAUX = averageAUX.mul(WINDOW_SIZE).sub(pricesAUX[index]).add(priceAUX).div(WINDOW_SIZE);
-      averageAUSC = averageAUSC.mul(WINDOW_SIZE).sub(pricesAUSC[index]).add(priceAUSC).div(WINDOW_SIZE);
-      pricesAUX[index] = priceAUX;
-      pricesAUSC[index] = priceAUSC;
+      averageAUX = averageAUX.mul(WINDOW_SIZE).sub(pricesAUX[index]).add(pendingAUXPrice).div(WINDOW_SIZE);
+      averageAUSC = averageAUSC.mul(WINDOW_SIZE).sub(pricesAUSC[index]).add(pendingAUSCPrice).div(WINDOW_SIZE);
+      pricesAUX[index] = pendingAUXPrice;
+      pricesAUSC[index] = pendingAUSCPrice;
+      pendingAUXPrice = priceAUX;
+      pendingAUSCPrice = priceAUSC;
       counter++;
     }
   }
 
-  function rebase() external {
-    // todo: do not rebase more frequently than once per hour
-    // todo: update prices before rebasing
+  function rebase() public {
+    if (lastRebase.add(REBASE_DELAY) > block.timestamp) {
+      // do not rebase more than once per day
+      return;
+    }
 
     // only rebase if there is a 5% difference between the price of AUX and AUSC
     uint256 highThreshold = averageAUX.mul(105).div(100);
@@ -69,22 +98,24 @@ contract BasicMonetaryPolicy {
       // AUSC is too expensive, this is a positive rebase increasing the supply
       uint256 currentSupply = IERC20(ausc).totalSupply();
       uint256 desiredSupply = currentSupply.mul(averageAUSC).div(averageAUX);
+      uint256 treasuryBudget = desiredSupply.sub(currentSupply).mul(10).div(100);
+      desiredSupply = desiredSupply.sub(treasuryBudget);
+
       // Cannot underflow as desiredSupply > currentSupply, the result is positive
-      //int256 delta = int256(desiredSupply - currentSupply); 
-      uint256 delta = desiredSupply.mul(1e18).div(currentSupply).sub(1e18); 
-      IUFragments(ausc).rebase(epoch, delta, true);
-      //IUFragments(ausc).rebase(epoch, delta);
+      // delta = (desiredSupply / currentSupply) * 100 - 100
+      uint256 delta = desiredSupply.mul(BASE).div(currentSupply).sub(BASE);
+      IAUSC(ausc).rebase(epoch, delta, true);
+      IAUSC(ausc).mint(treasury, treasuryBudget);
       epoch++;
     } else if (averageAUSC < lowThreshold) {
       // AUSC is too cheap, this is a negative rebase decreasing the supply
       uint256 currentSupply = IERC20(ausc).totalSupply();
       uint256 desiredSupply = currentSupply.mul(averageAUSC).div(averageAUX);
+
       // Cannot overflow as desiredSupply > currentSupply
-      //int256 delta = int256(desiredSupply - currentSupply); 
-      //IUFragments(ausc).rebase(epoch, delta);
-      // uint256 delta = uint256(currentSupply - desiredSupply); 
-      uint256 delta = uint256(1e18).sub(desiredSupply.mul(1e18).div(currentSupply)); 
-      IUFragments(ausc).rebase(epoch, delta, false);
+      // delta = 100 - (desiredSupply / currentSupply) * 100
+      uint256 delta = uint256(BASE).sub(desiredSupply.mul(BASE).div(currentSupply));
+      IAUSC(ausc).rebase(epoch, delta, false);
       epoch++;
     }
     // else the price is within bounds
