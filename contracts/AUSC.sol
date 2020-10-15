@@ -47,7 +47,7 @@ contract AUSCToken is GovernanceToken {
   )
   public
   {
-    require(yamsScalingFactor == 0, "already initialized");
+    require(auscsScalingFactor == 0, "already initialized");
     name = name_;
     symbol = symbol_;
     decimals = decimals_;
@@ -70,8 +70,8 @@ contract AUSCToken is GovernanceToken {
   view
   returns (uint256)
   {
-    // scaling factor can only go up to 2**256-1 = initSupply * yamsScalingFactor
-    // this is used to check if yamsScalingFactor will be too high to compute balances when rebasing.
+    // scaling factor can only go up to 2**256-1 = initSupply * auscsScalingFactor
+    // this is used to check if auscsScalingFactor will be too high to compute balances when rebasing.
     return uint256(- 1) / initSupply;
   }
 
@@ -95,19 +95,19 @@ contract AUSCToken is GovernanceToken {
     totalSupply = totalSupply.add(amount);
 
     // get underlying value
-    uint256 yamValue = fragmentToYam(amount);
+    uint256 auscValue = fragmentToAusc(amount);
 
     // increase initSupply
-    initSupply = initSupply.add(yamValue);
+    initSupply = initSupply.add(auscValue);
 
     // make sure the mint didnt push maxScalingFactor too low
-    require(yamsScalingFactor <= _maxScalingFactor(), "max scaling factor too low");
+    require(auscsScalingFactor <= _maxScalingFactor(), "max scaling factor too low");
 
     // add balance
-    _yamBalances[to] = _yamBalances[to].add(yamValue);
+    _auscBalances[to] = _auscBalances[to].add(auscValue);
 
     // add delegates to the minter
-    _moveDelegates(address(0), _delegates[to], yamValue);
+    _moveDelegates(address(0), _delegates[to], auscValue);
     emit Mint(to, amount);
     emit Transfer(address(0), to, amount);
   }
@@ -130,19 +130,19 @@ contract AUSCToken is GovernanceToken {
     totalSupply = totalSupply.sub(amount);
 
     // get underlying value
-    uint256 yamValue = fragmentToYam(amount);
+    uint256 auscValue = fragmentToAusc(amount);
 
     // increase initSupply
-    initSupply = initSupply.sub(yamValue);
+    initSupply = initSupply.sub(auscValue);
 
     // make sure the burn didnt push maxScalingFactor too low
-    require(yamsScalingFactor <= _maxScalingFactor(), "max scaling factor too low");
+    require(auscsScalingFactor <= _maxScalingFactor(), "max scaling factor too low");
 
     // sub balance, will revert on underflow
-    _yamBalances[from] = _yamBalances[from].sub(yamValue);
+    _auscBalances[from] = _auscBalances[from].sub(auscValue);
 
     // remove delegates from the minter
-    _moveDelegates(_delegates[from], address(0), yamValue);
+    _moveDelegates(_delegates[from], address(0), auscValue);
     emit Burn(from, amount);
     emit Transfer(from, address(0), amount);
   }
@@ -161,22 +161,22 @@ contract AUSCToken is GovernanceToken {
   rebaseAtTheEnd
   returns (bool)
   {
-    // underlying balance is stored in yams, so divide by current scaling factor
+    // underlying balance is stored in auscs, so divide by current scaling factor
 
     // note, this means as scaling factor grows, dust will be untransferrable.
-    // minimum transfer value == yamsScalingFactor / 1e24;
+    // minimum transfer value == auscsScalingFactor / 1e24;
 
     // get amount in underlying
-    uint256 yamValue = fragmentToYam(value);
+    uint256 auscValue = fragmentToAusc(value);
 
     // sub from balance of sender
-    _yamBalances[msg.sender] = _yamBalances[msg.sender].sub(yamValue);
+    _auscBalances[msg.sender] = _auscBalances[msg.sender].sub(auscValue);
 
     // add to balance of receiver
-    _yamBalances[to] = _yamBalances[to].add(yamValue);
+    _auscBalances[to] = _auscBalances[to].add(auscValue);
     emit Transfer(msg.sender, to, value);
 
-    _moveDelegates(_delegates[msg.sender], _delegates[to], yamValue);
+    _moveDelegates(_delegates[msg.sender], _delegates[to], auscValue);
     return true;
   }
 
@@ -195,15 +195,15 @@ contract AUSCToken is GovernanceToken {
     // decrease allowance
     _allowedFragments[from][msg.sender] = _allowedFragments[from][msg.sender].sub(value);
 
-    // get value in yams
-    uint256 yamValue = fragmentToYam(value);
+    // get value in auscs
+    uint256 auscValue = fragmentToAusc(value);
 
     // sub from from
-    _yamBalances[from] = _yamBalances[from].sub(yamValue);
-    _yamBalances[to] = _yamBalances[to].add(yamValue);
+    _auscBalances[from] = _auscBalances[from].sub(auscValue);
+    _auscBalances[to] = _auscBalances[to].add(auscValue);
     emit Transfer(from, to, value);
 
-    _moveDelegates(_delegates[from], _delegates[to], yamValue);
+    _moveDelegates(_delegates[from], _delegates[to], auscValue);
     return true;
   }
 
@@ -216,7 +216,7 @@ contract AUSCToken is GovernanceToken {
   view
   returns (uint256)
   {
-    return yamToFragment(_yamBalances[who]);
+    return auscToFragment(_auscBalances[who]);
   }
 
   /** @notice Currently returns the internal storage amount
@@ -228,7 +228,7 @@ contract AUSCToken is GovernanceToken {
   view
   returns (uint256)
   {
-    return _yamBalances[who];
+    return _auscBalances[who];
   }
 
   /**
@@ -364,48 +364,48 @@ contract AUSCToken is GovernanceToken {
   {
     // no change
     if (indexDelta == 0) {
-      emit Rebase(epoch, yamsScalingFactor, yamsScalingFactor);
+      emit Rebase(epoch, auscsScalingFactor, auscsScalingFactor);
       return totalSupply;
     }
 
     // for events
-    uint256 prevYamsScalingFactor = yamsScalingFactor;
+    uint256 prevAuscsScalingFactor = auscsScalingFactor;
 
 
     if (!positive) {
       // negative rebase, decrease scaling factor
-      yamsScalingFactor = yamsScalingFactor.mul(BASE.sub(indexDelta)).div(BASE);
+      auscsScalingFactor = auscsScalingFactor.mul(BASE.sub(indexDelta)).div(BASE);
     } else {
       // positive reabse, increase scaling factor
-      uint256 newScalingFactor = yamsScalingFactor.mul(BASE.add(indexDelta)).div(BASE);
+      uint256 newScalingFactor = auscsScalingFactor.mul(BASE.add(indexDelta)).div(BASE);
       if (newScalingFactor < _maxScalingFactor()) {
-        yamsScalingFactor = newScalingFactor;
+        auscsScalingFactor = newScalingFactor;
       } else {
-        yamsScalingFactor = _maxScalingFactor();
+        auscsScalingFactor = _maxScalingFactor();
       }
     }
 
     // update total supply, correctly
-    totalSupply = yamToFragment(initSupply);
+    totalSupply = auscToFragment(initSupply);
 
-    emit Rebase(epoch, prevYamsScalingFactor, yamsScalingFactor);
+    emit Rebase(epoch, prevAuscsScalingFactor, auscsScalingFactor);
     return totalSupply;
   }
 
-  function yamToFragment(uint256 yam)
+  function auscToFragment(uint256 ausc)
   public
   view
   returns (uint256)
   {
-    return yam.mul(yamsScalingFactor).div(internalDecimals);
+    return ausc.mul(auscsScalingFactor).div(internalDecimals);
   }
 
-  function fragmentToYam(uint256 value)
+  function fragmentToAusc(uint256 value)
   public
   view
   returns (uint256)
   {
-    return value.mul(internalDecimals).div(yamsScalingFactor);
+    return value.mul(internalDecimals).div(auscsScalingFactor);
   }
 
   // Rescue tokens
@@ -442,10 +442,10 @@ contract AUSC is AUSCToken {
   {
     super.initialize(name_, symbol_, decimals_);
 
-    yamsScalingFactor = BASE;
-    initSupply = fragmentToYam(initTotalSupply_);
+    auscsScalingFactor = BASE;
+    initSupply = fragmentToAusc(initTotalSupply_);
     totalSupply = initTotalSupply_;
-    _yamBalances[initial_owner] = initSupply;
+    _auscBalances[initial_owner] = initSupply;
     gov = initial_owner;
 
     DOMAIN_SEPARATOR = keccak256(

@@ -56,9 +56,9 @@ contract TokenStorage {
   /**
    * @notice Scaling factor that adjusts everyone's balances
    */
-  uint256 public yamsScalingFactor;
+  uint256 public auscsScalingFactor;
 
-  mapping(address => uint256) internal _yamBalances;
+  mapping(address => uint256) internal _auscBalances;
 
   mapping(address => mapping(address => uint256)) internal _allowedFragments;
 

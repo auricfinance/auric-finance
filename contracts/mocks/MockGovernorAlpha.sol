@@ -5,8 +5,8 @@ import "../governance/GovernorAlpha.sol";
 
 contract MockGovernorAlpha is GovernorAlpha {
 
-  constructor(address timelock_, address yam_) public
-  GovernorAlpha(timelock_, yam_)
+  constructor(address timelock_, address ausc_) public
+  GovernorAlpha(timelock_, ausc_)
   {}
 
   function votingPeriod() public pure returns (uint256) { return 100; }
