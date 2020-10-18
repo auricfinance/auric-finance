@@ -30,10 +30,10 @@ contract GovernorAlpha {
     string public constant name = "AUSC Governor Alpha";
 
     /// @notice The number of votes in support of a proposal required in order for a quorum to be reached and for a vote to succeed
-    function quorumVotes() public view returns (uint256) { return 0; } // Quorum always exists
+    function quorumVotes() public view returns (uint256) { return proposalThreshold(); } // Quorum always exists if the proposer votes for
 
     /// @notice The number of votes required in order for a voter to become a proposer
-    function proposalThreshold() public view returns (uint256) { return SafeMath.div(ausc.initSupply(), 100); } // 1% of YAM
+    function proposalThreshold() public view returns (uint256) { return SafeMath.div(ausc.initSupply(), 100); } // 1% of AUSC
 
     /// @notice The maximum number of actions that can be included in a proposal
     function proposalMaxOperations() public pure returns (uint256) { return 10; } // 10 actions

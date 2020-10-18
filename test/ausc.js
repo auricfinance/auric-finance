@@ -1,6 +1,6 @@
 const { expectRevert, time } = require("@openzeppelin/test-helpers");
 const AUSC = artifacts.require("AUSC");
-const MockMonetaryPolicy = artifacts.require("MockMonetaryPolicy");
+const MockRebaser = artifacts.require("MockRebaser");
 const TestToken = artifacts.require("TestToken");
 const TimeLock = artifacts.require("TimeLock");
 const GovernorAlpha = artifacts.require("MockGovernorAlpha");
@@ -83,30 +83,30 @@ contract("AUSC Test", function (accounts) {
   });
 
   describe("Rebasing", function () {
-    let monetaryPolicy;
+    let rebaser;
 
     beforeEach(async function () {
       ausc = await AUSC.new({ from: owner });
       await ausc.initialize(name, symbol, 18, owner, supply + decimalZeroes);
-      monetaryPolicy = await MockMonetaryPolicy.new(ausc.address, treasury);
-      await ausc._setRebaser(monetaryPolicy.address, {
+      rebaser = await MockRebaser.new(ausc.address, treasury);
+      await ausc._setRebaser(rebaser.address, {
         from: owner,
       });
     });
 
     it("setting monetary policy", async function () {
-      assert.equal(await ausc.rebaser(), monetaryPolicy.address);
+      assert.equal(await ausc.rebaser(), rebaser.address);
     });
 
     it("positive rebase", async function () {
-      await monetaryPolicy.setAUSCPrice(20);
-      await monetaryPolicy.setAUXPrice(10);
-      await monetaryPolicy.recordPrice();
+      await rebaser.setAUSCPrice(20);
+      await rebaser.setXAUPrice(10);
+      await rebaser.recordPrice();
       // increase time to get the pending price projected
       // and to get rebase after 24 hours
       await time.increase(24 * 3600);
-      await monetaryPolicy.recordPrice();
-      await monetaryPolicy.rebase();
+      await rebaser.recordPrice();
+      await rebaser.rebase();
       const twice = "60000000";
       const ownerBalance = "57000000";
       const treasuryBudget = "2999999"; // -1 rounding error
@@ -119,14 +119,14 @@ contract("AUSC Test", function (accounts) {
     });
 
     it("negative rebase", async function () {
-      await monetaryPolicy.setAUSCPrice(10);
-      await monetaryPolicy.setAUXPrice(20);
-      await monetaryPolicy.recordPrice();
+      await rebaser.setAUSCPrice(10);
+      await rebaser.setXAUPrice(20);
+      await rebaser.recordPrice();
       // increase time to get the pending price projected
       // and to get rebase after 24 hours
       await time.increase(24 * 3600);
-      await monetaryPolicy.recordPrice();
-      await monetaryPolicy.rebase();
+      await rebaser.recordPrice();
+      await rebaser.rebase();
       const half = "15000000";
       assert.equal(await ausc.totalSupply(), half + decimalZeroes);
       assert.equal(await ausc.balanceOf(owner), half + decimalZeroes);
@@ -146,13 +146,13 @@ contract("AUSC Test", function (accounts) {
 
   describe("Governance", function () {
 
-    let monetaryPolicy;
+    let rebaser;
 
     beforeEach(async function () {
       ausc = await AUSC.new({ from: owner });
       await ausc.initialize(name, symbol, 18, owner, supply + decimalZeroes);
-      monetaryPolicy = await MockMonetaryPolicy.new(ausc.address, treasury);
-      await ausc._setRebaser(monetaryPolicy.address, {
+      rebaser = await MockRebaser.new(ausc.address, treasury);
+      await ausc._setRebaser(rebaser.address, {
         from: owner,
       });
     });
@@ -168,10 +168,10 @@ contract("AUSC Test", function (accounts) {
       //assert.equal(await ausc.getCurrentVotes(treasury), long30);
 
       console.log((await ausc.getCurrentVotes(treasury)).toString());
-      await monetaryPolicy.setAUSCPrice(20);
-      await monetaryPolicy.setAUXPrice(10);
-      await monetaryPolicy.recordPrice();
-      await monetaryPolicy.rebase();
+      await rebaser.setAUSCPrice(20);
+      await rebaser.setXAUPrice(10);
+      await rebaser.recordPrice();
+      await rebaser.rebase();
 
       console.log((await ausc.balanceOf(treasury)).toString());
       console.log((await ausc.getCurrentVotes(treasury)).toString());
@@ -201,8 +201,8 @@ contract("AUSC Test", function (accounts) {
       await governorAlpha.__acceptAdmin({from : owner});
       assert.equal(await timelock.admin(), governorAlpha.address); 
 
-      const rebaser = await MockMonetaryPolicy.new(ausc.address, treasury);
-      await expectRevert(ausc._setRebaser(monetaryPolicy.address, {
+      const rebaser = await MockRebaser.new(ausc.address, treasury);
+      await expectRevert(ausc._setRebaser(rebaser.address, {
         from: owner,
       }), "only governance"
       );

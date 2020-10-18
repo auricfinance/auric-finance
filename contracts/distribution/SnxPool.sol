@@ -668,15 +668,16 @@ contract PoolEscrow {
         address _ausc,
         address _secondary,
         address _development,
-        address _governance,
+        address _governancePool,
         address _dao) public {
         shareToken = _shareToken;
         pool = _pool;
         ausc = _ausc;
         secondary = _secondary;
         development = _development;
-        governancePool = _governance;
+        governancePool = _governancePool;
         dao = _dao;
+        governance = msg.sender;
     }
 
     function setSecondary(address account) external onlyGovernance {
@@ -693,6 +694,10 @@ contract PoolEscrow {
 
     function setDao(address account) external onlyGovernance {
         dao = account;
+    }
+
+    function setGovernance(address account) external onlyGovernance {
+        governance = account;
     }
 
     function release(address recipient, uint256 shareAmount) external {

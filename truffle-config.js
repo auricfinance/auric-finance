@@ -8,6 +8,16 @@ module.exports = {
      network_id: "*",
      gas: 6721975,
     },
+    mainnet: {
+      provider: function () {
+        const credentials = require("./credentials.json");
+        return new HDWalletProvider(credentials.mnemonic, `https://mainnet.infura.io/v3/${credentials.token}`);
+      },
+      network_id: 1,
+      gas: 8000000,
+      skipDryRun: true,
+      gasPrice: 40000000000,
+    },
   },
   mocha: {
     timeout: 1200000

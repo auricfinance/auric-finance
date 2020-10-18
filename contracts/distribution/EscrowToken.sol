@@ -8,7 +8,7 @@ contract EscrowToken is ERC20, ERC20Detailed, ERC20Burnable {
   constructor() public
   ERC20Detailed("AUSC Escrow LP", "AUSCESC", 18)
   {
-    _mint(msg.sender, 30000000 * 1e18);
+    _mint(msg.sender, 10000000 * 1e18);
   }
 
 }

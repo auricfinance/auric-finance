@@ -19,11 +19,11 @@ new tokens. The new tokens are subjected to rebases in the next rebasing rounds.
 The governance then can set the rebaser. The rebaser is the only address allowed to
 initiate a rebase. The current implementation provides a rebaser called BasicMonetaryPolicy
 that uses oracles to checkpoint price every hour, and maintains a running average price
-of gold (AUX) and AUSC. If the price of AUSC diverts by more than 5% from AUX, anyone
+of gold (XAU) and AUSC. If the price of AUSC diverts by more than 5% from XAU, anyone
 externally owned account can initiate a rebase through this smart contract. The
 restriction to exteranlly owned accounts is made to avoid possible market manipulations
 (e.g. by flashloans) as the price of AUSC is to be taken from DEXes such as Uniswap.
-The price of AUX is to be taken from Chainlink's oracle. The BasicMonetaryPolicy is
+The price of XAU is to be taken from Chainlink's oracle. The BasicMonetaryPolicy is
 an abstract smart contract, i.e., it does not implement the functions for reading
 the price from Uniswap and Chainlink. For the purposes of the audit, assume that the 
 monetary policy used in production implements the two abstract functions and intergates
@@ -141,7 +141,7 @@ ensuring that the recipients of the endowments can be changed.
 NOTE TO AUDITORS: Double check this principle. 
 
 **Rebases.** Following the token deployment, the deployer deploys the MoneteryPolicy
-connected to the Uniswap pool and the Chainlink AUX oracle. Rebasing will be activated
+connected to the Uniswap pool and the Chainlink XAU oracle. Rebasing will be activated
 immediately, but the first rebase will not happen for the first 24 hours. The deployer will
 set the rebaser, and will be able to do this as the governance is not configured yet.
 

@@ -5,7 +5,7 @@ pragma solidity 0.5.16;
 contract MockOracle {
 
   uint256 priceAUSC = 1;
-  uint256 priceAUX = 1;
+  uint256 priceXAU = 1;
 
   constructor () public {
   }
@@ -14,16 +14,16 @@ contract MockOracle {
     priceAUSC = price;
   }
 
-  function setAUXPrice(uint256 price) external {
-    priceAUX = price;
+  function setXAUPrice(uint256 price) external {
+    priceXAU = price;
   }
 
-  function getPriceAUSC() public view returns (uint256) {
-    return priceAUSC;
+  function getPriceAUSC() public view returns (bool, uint256) {
+    return (true, priceAUSC);
   }
 
-  function getPriceAUX() public view returns (uint256) {
-    return priceAUX;
+  function getPriceXAU() public view returns (bool, uint256) {
+    return (true, priceXAU);
   }
 }
 
