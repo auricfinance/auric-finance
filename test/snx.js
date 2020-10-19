@@ -1,8 +1,9 @@
-const { time } = require("@openzeppelin/test-helpers");
+const { time, expectRevert } = require("@openzeppelin/test-helpers");
 const AUSC = artifacts.require("AUSC");
 const PoolEscrow = artifacts.require("PoolEscrow");
 const TestToken = artifacts.require("TestToken");
 const EscrowToken = artifacts.require("EscrowToken");
+const SecondaryEscrowToken = artifacts.require("SecondaryEscrowToken");
 const AuricRewards = artifacts.require("AuricRewards");
 
 contract("Rewards Test", function (accounts) {
@@ -17,23 +18,105 @@ contract("Rewards Test", function (accounts) {
   let ausc;
   let lp;
   let escrowToken;
+  let secondaryEscrowToken;
   let poolEscrow;
+  let secondaryEscrow;
   let pool;
+  let secondaryPool;
 
   describe("Basic initialization", function () {
     beforeEach(async function () {
-      escrowToken = await EscrowToken.new({ from : owner});
+      escrowToken = await EscrowToken.new({ from: owner });
       ausc = await AUSC.new({ from: owner });
       await ausc.initialize(name, symbol, 18, owner, supply + decimalZeroes);
       lp = await TestToken.new({ from: owner });
-      await lp.mint(owner, supply + decimalZeroes, {from: owner});
+      await lp.mint(owner, supply + decimalZeroes, { from: owner });
       pool = await AuricRewards.new(escrowToken.address, lp.address, {
         from: owner,
       });
-      poolEscrow = await PoolEscrow.new(escrowToken.address, pool.address, ausc.address, secondary, secondary, secondary, secondary);
+      poolEscrow = await PoolEscrow.new(
+        escrowToken.address,
+        pool.address,
+        ausc.address,
+        secondary,
+        secondary,
+        secondary,
+        secondary,
+        { from: owner }
+      );
       await ausc.transfer(poolEscrow.address, supply + decimalZeroes, {
         from: owner,
       });
+      secondaryEscrowToken = await SecondaryEscrowToken.new({ from: owner });
+      secondaryPool = await AuricRewards.new(
+        escrowToken.address,
+        secondaryEscrowToken.address,
+        {
+          from: owner,
+        }
+      );
+      secondaryEscrow = await PoolEscrow.new(
+        secondaryEscrowToken.address,
+        secondaryPool.address,
+        ausc.address,
+        "0x0000000000000000000000000000000000000000",
+        "0x0000000000000000000000000000000000000000",
+        "0x0000000000000000000000000000000000000000",
+        "0x0000000000000000000000000000000000000000",
+        { from: owner }
+      );
+      await secondaryPool.setRewardDistribution(secondaryEscrow.address, {from : owner});
+      await secondaryEscrowToken.addMinter(
+        secondaryEscrow.address,
+        { from: owner }
+      );
+      await poolEscrow.setSecondary(secondaryEscrow.address, { from: owner });
+    });
+
+    it("pool escrow setters", async function () {
+      assert.equal(await poolEscrow.governance(), owner);
+      assert.equal(await poolEscrow.governancePool(), secondary);
+      assert.equal(await poolEscrow.dao(), secondary);
+      assert.equal(await poolEscrow.development(), secondary);
+      assert.equal(await poolEscrow.secondary(), secondaryEscrow.address);
+      assert.equal(await poolEscrow.pool(), pool.address);
+      assert.equal(await poolEscrow.shareToken(), escrowToken.address);
+      assert.equal(await poolEscrow.ausc(), ausc.address);
+
+      await expectRevert(
+        poolEscrow.setSecondary(owner, { from: accounts[3] }),
+        "only governance"
+      );
+      await poolEscrow.setSecondary(owner, { from: owner });
+      assert.equal(await poolEscrow.secondary(), owner);
+
+      await expectRevert(
+        poolEscrow.setDao(owner, { from: accounts[3] }),
+        "only governance"
+      );
+      await poolEscrow.setDao(owner, { from: owner });
+      assert.equal(await poolEscrow.dao(), owner);
+
+      await expectRevert(
+        poolEscrow.setDevelopment(owner, { from: accounts[3] }),
+        "only governance"
+      );
+      await poolEscrow.setDevelopment(owner, { from: owner });
+      assert.equal(await poolEscrow.development(), owner);
+
+      await expectRevert(
+        poolEscrow.setGovernancePool(owner, { from: accounts[3] }),
+        "only governance"
+      );
+      await poolEscrow.setGovernancePool(owner, { from: owner });
+      assert.equal(await poolEscrow.governancePool(), owner);
+
+      await expectRevert(
+        poolEscrow.setGovernance(owner, { from: accounts[3] }),
+        "only governance"
+      );
+      await poolEscrow.setGovernance(secondary, { from: owner });
+      assert.equal(await poolEscrow.governance(), secondary);
     });
 
     it("set rewards distribution", async function () {
@@ -66,8 +149,19 @@ contract("Rewards Test", function (accounts) {
         assert.isTrue(earned.toString() > previous);
         previous = earned.toString();
       }
-      await pool.exit({from: owner});
+      await pool.exit({ from: owner });
       assert.isTrue((await ausc.balanceOf(owner)).toString() > "0");
+      assert.isTrue(
+        (await ausc.balanceOf(secondaryEscrow.address)).toString() > "0"
+      );
+      console.log(secondaryEscrowToken.address);
+      console.log(secondaryPool.address);
+      console.log(secondaryEscrow.address);
+      assert.isTrue(
+        (
+          await secondaryEscrowToken.balanceOf(secondaryPool.address)
+        ).toString() > "0"
+      );
     });
 
     it("double notify", async function () {
@@ -77,8 +171,12 @@ contract("Rewards Test", function (accounts) {
       await escrowToken.transfer(pool.address, supply + decimalZeroes, {
         from: owner,
       });
-      await pool.notifyRewardAmount(halfSupply + decimalZeroes, { from: notifier });
-      await pool.notifyRewardAmount(halfSupply + decimalZeroes, { from: notifier });
+      await pool.notifyRewardAmount(halfSupply + decimalZeroes, {
+        from: notifier,
+      });
+      await pool.notifyRewardAmount(halfSupply + decimalZeroes, {
+        from: notifier,
+      });
       const stake = "10000";
       await lp.approve(pool.address, stake, { from: owner });
       await pool.stake(stake, { from: owner });
@@ -90,9 +188,8 @@ contract("Rewards Test", function (accounts) {
         previous = earned.toString();
       }
       console.log((await pool.earnedAusc(owner)).toString());
-      await pool.exit({from: owner});
+      await pool.exit({ from: owner });
       assert.isTrue((await ausc.balanceOf(owner)).toString() > "0");
-
     });
   });
 });

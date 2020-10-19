@@ -447,14 +447,5 @@ contract AUSC is AUSCToken {
     totalSupply = initTotalSupply_;
     _auscBalances[initial_owner] = initSupply;
     gov = initial_owner;
-
-    DOMAIN_SEPARATOR = keccak256(
-      abi.encode(
-        DOMAIN_TYPEHASH,
-        keccak256(bytes(name)),
-        getChainId(),
-        address(this)
-      )
-    );
   }
 }

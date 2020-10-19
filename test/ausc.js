@@ -4,6 +4,9 @@ const MockRebaser = artifacts.require("MockRebaser");
 const TestToken = artifacts.require("TestToken");
 const TimeLock = artifacts.require("TimeLock");
 const GovernorAlpha = artifacts.require("MockGovernorAlpha");
+const PoolEscrow = artifacts.require("PoolEscrow");
+const AuricRewards = artifacts.require("AuricRewards");
+const SecondaryEscrowToken = artifacts.require("SecondaryEscrowToken");
 
 contract("AUSC Test", function (accounts) {
   const owner = accounts[0];
@@ -30,65 +33,107 @@ contract("AUSC Test", function (accounts) {
       assert.equal(await ausc.balanceOf(owner), supply + decimalZeroes);
       console.log((await ausc.balanceOfUnderlying(owner)).toString());
       console.log((await ausc.maxScalingFactor()).toString());
-      assert.equal(await ausc.maxScalingFactor(), "3859736307910539847452366166956263595108999488");
-      assert.equal(await ausc.balanceOfUnderlying(owner), "30000000000000000000000000000000");
+      assert.equal(
+        await ausc.maxScalingFactor(),
+        "3859736307910539847452366166956263595108999488"
+      );
+      assert.equal(
+        await ausc.balanceOfUnderlying(owner),
+        "30000000000000000000000000000000"
+      );
     });
 
     it("ERC20 functions", async function () {
-      await ausc.approve(treasury, "100", {from : owner});
+      await ausc.approve(treasury, "100", { from: owner });
       assert.equal(await ausc.allowance(owner, treasury), "100");
-      await ausc.increaseAllowance(treasury, "100", {from : owner});
+      await ausc.increaseAllowance(treasury, "100", { from: owner });
       assert.equal(await ausc.allowance(owner, treasury), "200");
-      await ausc.decreaseAllowance(treasury, "10", {from : owner});
+      await ausc.decreaseAllowance(treasury, "10", { from: owner });
       assert.equal(await ausc.allowance(owner, treasury), "190");
-      await ausc.transferFrom(owner, treasury, "90", {from : treasury});
+      await ausc.transferFrom(owner, treasury, "90", { from: treasury });
       assert.equal(await ausc.balanceOf(treasury), "90");
       assert.equal(await ausc.allowance(owner, treasury), "100");
-      await ausc.decreaseAllowance(treasury, "100000", {from : owner});
+      await ausc.decreaseAllowance(treasury, "100000", { from: owner });
       assert.equal(await ausc.allowance(owner, treasury), "0");
     });
 
     it("Minting and burning", async function () {
       assert.equal(await ausc.balanceOf(owner), supply + decimalZeroes);
-      await ausc.burn(half + decimalZeroes, {from : owner});
+      await ausc.burn(half + decimalZeroes, { from: owner });
       assert.equal(await ausc.balanceOf(owner), half + decimalZeroes);
       assert.equal(await ausc.totalSupply(), half + decimalZeroes);
     });
 
     it("token rescue by governance", async function () {
       const token = await TestToken.new({ from: owner });
-      await token.mint(ausc.address, supply + decimalZeroes, {from: owner});
+      await token.mint(ausc.address, supply + decimalZeroes, { from: owner });
       await expectRevert(
-	ausc.rescueTokens(token.address, owner, supply + decimalZeroes, {from : treasury}),
+        ausc.rescueTokens(token.address, owner, supply + decimalZeroes, {
+          from: treasury,
+        }),
         "only governance"
       );
-      await ausc.rescueTokens(token.address, owner, supply + decimalZeroes, {from : owner});
+      await ausc.rescueTokens(token.address, owner, supply + decimalZeroes, {
+        from: owner,
+      });
       assert.equal(await token.balanceOf(owner), supply + decimalZeroes);
     });
 
     it("changing governance", async function () {
       await expectRevert(
-        ausc._setPendingGov(treasury, {from : treasury}),
+        ausc._setPendingGov(treasury, { from: treasury }),
         "only governance"
       );
-      await expectRevert(
-        ausc._acceptGov({from : treasury}),
-        "!pending"
-      );
-      await ausc._setPendingGov(treasury, {from : owner});
+      await expectRevert(ausc._acceptGov({ from: treasury }), "!pending");
+      await ausc._setPendingGov(treasury, { from: owner });
       assert.equal(await ausc.gov(), owner);
-      await ausc._acceptGov({from : treasury}),
-      assert.equal(await ausc.gov(), treasury);
+      await ausc._acceptGov({ from: treasury }),
+        assert.equal(await ausc.gov(), treasury);
     });
   });
 
   describe("Rebasing", function () {
     let rebaser;
+    let secondaryPoolEscrow;
+    let secondaryPool;
+    let secondaryEscrowToken;
 
     beforeEach(async function () {
       ausc = await AUSC.new({ from: owner });
       await ausc.initialize(name, symbol, 18, owner, supply + decimalZeroes);
-      rebaser = await MockRebaser.new(ausc.address, treasury);
+
+      // set up secondary pool
+      secondaryEscrowToken = await SecondaryEscrowToken.new({ from: owner });
+      let escrowToken = await SecondaryEscrowToken.new({ from: owner });
+      secondaryPool = await AuricRewards.new(
+        escrowToken.address,
+        secondaryEscrowToken.address,
+        {
+          from: owner,
+        }
+      );
+      secondaryPoolEscrow = await PoolEscrow.new(
+        secondaryEscrowToken.address,
+        secondaryPool.address,
+        ausc.address,
+        "0x0000000000000000000000000000000000000000",
+        "0x0000000000000000000000000000000000000000",
+        "0x0000000000000000000000000000000000000000",
+        "0x0000000000000000000000000000000000000000",
+        { from: owner }
+      );
+      await secondaryPool.setRewardDistribution(secondaryPoolEscrow.address, {
+        from: owner,
+      });
+      await secondaryEscrowToken.addMinter(secondaryPoolEscrow.address, {
+        from: owner,
+      });
+
+      // set up rebaser
+      rebaser = await MockRebaser.new(
+        ausc.address,
+        secondaryPoolEscrow.address
+      );
       await ausc._setRebaser(rebaser.address, {
         from: owner,
       });
@@ -115,7 +160,10 @@ contract("AUSC Test", function (accounts) {
       // console.log((await ausc.balanceOf(treasury)).toString());
       assert.equal(await ausc.totalSupply(), twice + decimalZeroes);
       assert.equal(await ausc.balanceOf(owner), ownerBalance + decimalZeroes);
-      assert.equal(await ausc.balanceOf(treasury), treasuryBudget + decimalNines);
+      assert.equal(
+        await ausc.balanceOf(secondaryPoolEscrow.address),
+        treasuryBudget + decimalNines
+      );
     });
 
     it("negative rebase", async function () {
@@ -130,22 +178,21 @@ contract("AUSC Test", function (accounts) {
       const half = "15000000";
       assert.equal(await ausc.totalSupply(), half + decimalZeroes);
       assert.equal(await ausc.balanceOf(owner), half + decimalZeroes);
-      assert.equal(await ausc.balanceOf(treasury), 0);
+      assert.equal(await ausc.balanceOf(secondaryPoolEscrow.address), 0);
     });
 
     it("no rebase", async function () {
       await ausc._setRebaser(owner, {
         from: owner,
       });
-      await ausc.rebase(0, 0, true, {from: owner});
+      await ausc.rebase(0, 0, true, { from: owner });
       assert.equal(await ausc.totalSupply(), supply + decimalZeroes);
       assert.equal(await ausc.balanceOf(owner), supply + decimalZeroes);
-      assert.equal(await ausc.balanceOf(treasury), 0);
+      assert.equal(await ausc.balanceOf(secondaryPoolEscrow.address), 0);
     });
   });
 
   describe("Governance", function () {
-
     let rebaser;
 
     beforeEach(async function () {
@@ -160,11 +207,11 @@ contract("AUSC Test", function (accounts) {
     it("votes", async function () {
       let long30 = "30000000000000000000000000000000";
 
-      await ausc.delegate(owner, { from : owner });
+      await ausc.delegate(owner, { from: owner });
       //assert.equal(await ausc.getCurrentVotes(owner), long30);
       await ausc.transfer(treasury, supply + decimalZeroes);
       //assert.equal(await ausc.getCurrentVotes(owner), "0");
-      await ausc.delegate(treasury, {from : treasury});
+      await ausc.delegate(treasury, { from: treasury });
       //assert.equal(await ausc.getCurrentVotes(treasury), long30);
 
       console.log((await ausc.getCurrentVotes(treasury)).toString());
@@ -177,7 +224,7 @@ contract("AUSC Test", function (accounts) {
       console.log((await ausc.getCurrentVotes(treasury)).toString());
       console.log((await ausc.balanceOfUnderlying(owner)).toString());
       console.log((await ausc.getCurrentVotes(owner)).toString());
-      await ausc.delegate(treasury, {from : treasury});
+      await ausc.delegate(treasury, { from: treasury });
       console.log((await ausc.getCurrentVotes(treasury)).toString());
     });
 
@@ -191,49 +238,68 @@ contract("AUSC Test", function (accounts) {
       // 5. Treasury votes for, owner votes against
       // 6. Vote passes and gets executed through timelock
 
-      timelock = await TimeLock.new( {from : owner});
-      await ausc._setPendingGov(timelock.address, {from: owner});
-      await timelock.executeTransaction(ausc.address, "0", "_acceptGov()", "0x", 0);
-      assert.equal(await ausc.gov(), timelock.address); 
+      timelock = await TimeLock.new({ from: owner });
+      await ausc._setPendingGov(timelock.address, { from: owner });
+      await timelock.executeTransaction(
+        ausc.address,
+        "0",
+        "_acceptGov()",
+        "0x",
+        0
+      );
+      assert.equal(await ausc.gov(), timelock.address);
       governorAlpha = await GovernorAlpha.new(timelock.address, ausc.address);
-      await timelock.setPendingAdmin(governorAlpha.address, {from : owner});
-      assert.isTrue(await timelock.admin_initialized()); 
-      await governorAlpha.__acceptAdmin({from : owner});
-      assert.equal(await timelock.admin(), governorAlpha.address); 
+      await timelock.setPendingAdmin(governorAlpha.address, { from: owner });
+      assert.isTrue(await timelock.admin_initialized());
+      await governorAlpha.__acceptAdmin({ from: owner });
+      assert.equal(await timelock.admin(), governorAlpha.address);
 
       const rebaser = await MockRebaser.new(ausc.address, treasury);
-      await expectRevert(ausc._setRebaser(rebaser.address, {
-        from: owner,
-      }), "only governance"
+      await expectRevert(
+        ausc._setRebaser(rebaser.address, {
+          from: owner,
+        }),
+        "only governance"
       );
-      
+
       const percent60 = "18000000" + decimalZeroes;
-      await ausc.transfer(treasury, percent60, {from : owner});
-      await ausc.delegate(treasury, {from : treasury});
-      await ausc.delegate(owner, {from : owner});
+      await ausc.transfer(treasury, percent60, { from: owner });
+      await ausc.delegate(treasury, { from: treasury });
+      await ausc.delegate(owner, { from: owner });
       console.log((await ausc.getCurrentVotes(owner)).toString());
       console.log((await ausc.getCurrentVotes(treasury)).toString());
 
-      await governorAlpha.propose([ausc.address], ["0"], ["_setRebaser(address)"], [web3.eth.abi.encodeParameter("address", rebaser.address)], "sets new rebaser", {from : treasury});
+      await governorAlpha.propose(
+        [ausc.address],
+        ["0"],
+        ["_setRebaser(address)"],
+        [web3.eth.abi.encodeParameter("address", rebaser.address)],
+        "sets new rebaser",
+        { from: treasury }
+      );
       console.log((await governorAlpha.state(1)).toString());
       await time.advanceBlock();
       await time.advanceBlock();
       console.log((await governorAlpha.state(1)).toString());
-      await governorAlpha.castVote(1, true, {from : treasury});
-      await governorAlpha.castVote(1, false, {from : owner});
+      await governorAlpha.castVote(1, true, { from: treasury });
+      await governorAlpha.castVote(1, false, { from: owner });
       console.log((await governorAlpha.state(1)).toString());
       await time.advanceBlockTo(100 + parseInt(await time.latestBlock()));
       console.log((await governorAlpha.state(1)).toString());
 
-      await governorAlpha.queue(1, {from : owner});
+      await governorAlpha.queue(1, { from: owner });
       console.log((await governorAlpha.state(1)).toString());
       await time.increase(24 * 3600);
       console.log((await governorAlpha.state(1)).toString());
-      await governorAlpha.execute(1, {from : treasury});
+      await governorAlpha.execute(1, { from: treasury });
       console.log((await governorAlpha.state(1)).toString());
 
       assert.equal(await ausc.rebaser(), rebaser.address);
+      assert.equal(await ausc.getPriorVotes(treasury, 0), 0);
+      await expectRevert(
+        ausc.getPriorVotes(treasury, "1000000000000"),
+        "AUSC::getPriorVotes: not yet determined"
+      );
     });
   });
-
 });

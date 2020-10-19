@@ -2,11 +2,14 @@ pragma solidity 0.5.16;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "./IAUSC.sol";
+import "./IPoolEscrow.sol";
 
 contract BasicRebaser {
 
   using SafeMath for uint256;
+  using SafeERC20 for IERC20;
 
   event Updated(uint256 xau, uint256 ausc);
   event NoUpdateXAU();
@@ -120,7 +123,12 @@ contract BasicRebaser {
       // delta = (desiredSupply / currentSupply) * 100 - 100
       uint256 delta = desiredSupply.mul(BASE).div(currentSupply).sub(BASE);
       IAUSC(ausc).rebase(epoch, delta, true);
-      IAUSC(ausc).mint(secondaryPool, secondaryPoolBudget);
+      IAUSC(ausc).mint(address(this), secondaryPoolBudget);
+      // notify the pool escrow that tokens are available
+      IERC20(ausc).safeApprove(secondaryPool, 0);
+      IERC20(ausc).safeApprove(secondaryPool, secondaryPoolBudget);
+      IPoolEscrow(secondaryPool).notifySecondaryTokens(secondaryPoolBudget);
+
       epoch++;
     } else if (averageAUSC < lowThreshold) {
       // AUSC is too cheap, this is a negative rebase decreasing the supply

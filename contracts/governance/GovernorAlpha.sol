@@ -345,45 +345,6 @@ contract GovernorAlpha {
         return _castVote(msg.sender, proposalId, support);
     }
 
-    function castVoteBySig(
-        uint256 proposalId,
-        bool support,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    )
-        public
-    {
-        bytes32 domainSeparator = keccak256(
-            abi.encode(
-                DOMAIN_TYPEHASH,
-                keccak256(bytes(name)),
-                getChainId(),
-                address(this)
-            )
-        );
-
-        bytes32 structHash = keccak256(
-            abi.encode(
-                BALLOT_TYPEHASH,
-                proposalId,
-                support
-            )
-        );
-
-        bytes32 digest = keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                domainSeparator,
-                structHash
-            )
-        );
-
-        address signatory = ecrecover(digest, v, r, s);
-        require(signatory != address(0), "GovernorAlpha::castVoteBySig: invalid signature");
-        return _castVote(signatory, proposalId, support);
-    }
-
     function _castVote(
         address voter,
         uint256 proposalId,
@@ -453,12 +414,6 @@ contract GovernorAlpha {
     function sub256(uint256 a, uint256 b) internal pure returns (uint256) {
         require(b <= a, "subtraction underflow");
         return a - b;
-    }
-
-    function getChainId() internal pure returns (uint256) {
-        uint256 chainId;
-        assembly { chainId := chainid() }
-        return chainId;
     }
 }
 

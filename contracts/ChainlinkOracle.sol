@@ -17,12 +17,7 @@ contract ChainlinkOracle {
   function getPriceXAU() public view returns (bool, uint256) {
     // answer has 8 decimals, it is the price of 1 oz of gold in USD
     // if the round is not completed, updated at is 0
-    (uint80 roundId,
-    int256 answer,
-    uint256 startedAt,
-    uint256 updatedAt,
-    uint80 answeredInRound)
-     = AggregatorV3Interface(oracle).latestRoundData();
+    (,int256 answer,,uint256 updatedAt,) = AggregatorV3Interface(oracle).latestRoundData();
     // add 10 decimals at the end
     return (updatedAt != 0, uint256(answer).mul(10).mul(ozToMgPrecision).div(ozToMg).mul(1e10));
   }

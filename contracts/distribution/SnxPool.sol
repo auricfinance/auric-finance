@@ -644,12 +644,16 @@ interface IERC20Burnable {
     function burn(uint256 amount) external;
 }
 
+interface IERC20Mintable {
+    function mint(address to, uint256 amount) external;
+}
+
 contract PoolEscrow {
 
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
-    modifier onlyGovernance() {
+    modifier onlyGov() {
         require(msg.sender == governance, "only governance");
         _;
     }
@@ -662,6 +666,7 @@ contract PoolEscrow {
     address public governancePool;
     address public dao;
     address public governance;
+    uint256 public lastMint;
 
     constructor(address _shareToken,
         address _pool,
@@ -678,25 +683,26 @@ contract PoolEscrow {
         governancePool = _governancePool;
         dao = _dao;
         governance = msg.sender;
+        lastMint = 0;
     }
 
-    function setSecondary(address account) external onlyGovernance {
+    function setSecondary(address account) external onlyGov {
         secondary = account;
     }
 
-    function setDevelopment(address account) external onlyGovernance {
+    function setDevelopment(address account) external onlyGov {
         development = account;
     }
 
-    function setGovernancePool(address account) external onlyGovernance {
+    function setGovernancePool(address account) external onlyGov {
         governancePool = account;
     }
 
-    function setDao(address account) external onlyGovernance {
+    function setDao(address account) external onlyGov {
         dao = account;
     }
 
-    function setGovernance(address account) external onlyGovernance {
+    function setGovernance(address account) external onlyGov {
         governance = account;
     }
 
@@ -706,7 +712,9 @@ contract PoolEscrow {
         uint256 endowment = getTokenNumber(shareAmount).mul(5).div(100);
         uint256 reward = getTokenNumber(shareAmount);
         if (secondary != address(0)) {
-            IERC20(ausc).safeTransfer(secondary, endowment);
+            IERC20(ausc).safeApprove(secondary, 0);
+            IERC20(ausc).safeApprove(secondary, endowment);
+            PoolEscrow(secondary).notifySecondaryTokens(endowment);
             reward = reward.sub(endowment);
         }
         if (development != address(0)) {
@@ -729,6 +737,21 @@ contract PoolEscrow {
         return IERC20(ausc).balanceOf(address(this))
             .mul(shareAmount)
             .div(IERC20(shareToken).totalSupply());
+    }
+
+    /**
+    * Functionality for secondary pool escrow. Transfers AUSC tokens from msg.sender to this
+    * escrow. At most per day, mints a fixed number of escrow tokens to the pool, and notifies
+    * the pool. The period 1 day should match the secondary pool.
+    */
+    function notifySecondaryTokens(uint256 number) external {
+        IERC20(ausc).safeTransferFrom(msg.sender, address(this), number);
+        if (lastMint.add(1 days) < block.timestamp) {
+            uint256 dailyMint = 1000 * 1e18;
+            IERC20Mintable(shareToken).mint(pool, dailyMint);
+            AuricRewards(pool).notifyRewardAmount(dailyMint);
+            lastMint = block.timestamp;
+        }
     }
 }
 
