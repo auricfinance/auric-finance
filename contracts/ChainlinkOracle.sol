@@ -8,7 +8,7 @@ contract ChainlinkOracle {
   using SafeMath for uint256;
 
   address public constant oracle = 0x214eD9Da11D2fbe465a6fc601a91E62EbEc1a0D6;
-  uint256 public constant ozToMg = 283495231;
+  uint256 public constant ozToMg = 311035000;
   uint256 public constant ozToMgPrecision = 1e4;
 
   constructor () public {

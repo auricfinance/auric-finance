@@ -14,6 +14,8 @@ contract BasicRebaser {
   event Updated(uint256 xau, uint256 ausc);
   event NoUpdateXAU();
   event NoUpdateAUSC();
+  event NoSecondaryMint();
+  event NoRebaseNeeded();
 
   uint256 public constant BASE = 1e18;
   uint256 public constant WINDOW_SIZE = 12;
@@ -27,18 +29,35 @@ contract BasicRebaser {
   uint256 public averageXAU;
   uint256 public averageAUSC;
   uint256 public lastUpdate;
-  uint256 public frequency = 1 hours;
+  // uint256 public frequency = 1 hours;
+  uint256 public frequency = 5 minutes;
   uint256 public counter = 0;
   uint256 public epoch = 1;
   address public secondaryPool;
+  address public governance;
 
   uint256 public lastRebase = 0;
-  uint256 public constant REBASE_DELAY = 24 hours;
+  // uint256 public constant REBASE_DELAY = 24 hours;
+  uint256 public constant REBASE_DELAY = 10 minutes;
+
+  modifier onlyGov() {
+    require(msg.sender == governance, "only gov");
+    _;
+  }
 
   constructor (address token, address _secondaryPool) public {
     ausc = token;
     secondaryPool = _secondaryPool;
     lastRebase = block.timestamp;
+    governance = msg.sender;
+  }
+
+  function setGovernance(address account) external onlyGov {
+    governance = account;
+  }
+
+  function setSecondaryPool(address pool) external onlyGov {
+    secondaryPool = pool;
   }
 
   function checkRebase() external {
@@ -123,13 +142,18 @@ contract BasicRebaser {
       // delta = (desiredSupply / currentSupply) * 100 - 100
       uint256 delta = desiredSupply.mul(BASE).div(currentSupply).sub(BASE);
       IAUSC(ausc).rebase(epoch, delta, true);
-      IAUSC(ausc).mint(address(this), secondaryPoolBudget);
-      // notify the pool escrow that tokens are available
-      IERC20(ausc).safeApprove(secondaryPool, 0);
-      IERC20(ausc).safeApprove(secondaryPool, secondaryPoolBudget);
-      IPoolEscrow(secondaryPool).notifySecondaryTokens(secondaryPoolBudget);
 
+      if (secondaryPool != address(0)) {
+        // notify the pool escrow that tokens are available
+        IAUSC(ausc).mint(address(this), secondaryPoolBudget);
+        IERC20(ausc).safeApprove(secondaryPool, 0);
+        IERC20(ausc).safeApprove(secondaryPool, secondaryPoolBudget);
+        IPoolEscrow(secondaryPool).notifySecondaryTokens(secondaryPoolBudget);
+      } else {
+        emit NoSecondaryMint();
+      }
       epoch++;
+      lastRebase = block.timestamp;
     } else if (averageAUSC < lowThreshold) {
       // AUSC is too cheap, this is a negative rebase decreasing the supply
       uint256 currentSupply = IERC20(ausc).totalSupply();
@@ -140,8 +164,11 @@ contract BasicRebaser {
       uint256 delta = uint256(BASE).sub(desiredSupply.mul(BASE).div(currentSupply));
       IAUSC(ausc).rebase(epoch, delta, false);
       epoch++;
+      lastRebase = block.timestamp;
+    } else {
+      // else the price is within bounds
+      emit NoRebaseNeeded();
     }
-    // else the price is within bounds
   }
 
   function getPriceXAU() public view returns (bool, uint256);

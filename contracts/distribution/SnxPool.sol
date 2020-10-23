@@ -683,7 +683,7 @@ contract PoolEscrow {
         governancePool = _governancePool;
         dao = _dao;
         governance = msg.sender;
-        lastMint = 0;
+        lastMint = block.timestamp + 3 hours;
     }
 
     function setSecondary(address account) external onlyGov {
@@ -746,8 +746,8 @@ contract PoolEscrow {
     */
     function notifySecondaryTokens(uint256 number) external {
         IERC20(ausc).safeTransferFrom(msg.sender, address(this), number);
-        if (lastMint.add(1 days) < block.timestamp) {
-            uint256 dailyMint = 1000 * 1e18;
+        if (lastMint.add(14 days) < block.timestamp) {
+            uint256 dailyMint = 1000000 * 1e18;
             IERC20Mintable(shareToken).mint(pool, dailyMint);
             AuricRewards(pool).notifyRewardAmount(dailyMint);
             lastMint = block.timestamp;
@@ -757,7 +757,7 @@ contract PoolEscrow {
 
 contract AuricRewards is LPTokenWrapper, IRewardDistributionRecipient {
     IERC20 public snx;
-    uint256 public constant DURATION = 7 days;
+    uint256 public constant DURATION = 14 days;
 
     address public escrow;
     uint256 public periodFinish = 0;

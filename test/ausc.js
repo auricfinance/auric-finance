@@ -8,7 +8,7 @@ const PoolEscrow = artifacts.require("PoolEscrow");
 const AuricRewards = artifacts.require("AuricRewards");
 const SecondaryEscrowToken = artifacts.require("SecondaryEscrowToken");
 
-contract("AUSC Test", function (accounts) {
+contract.only("AUSC Test", function (accounts) {
   const owner = accounts[0];
   const treasury = accounts[1];
   const name = "AUSCM";
@@ -92,7 +92,7 @@ contract("AUSC Test", function (accounts) {
     });
   });
 
-  describe("Rebasing", function () {
+  describe.only("Rebasing", function () {
     let rebaser;
     let secondaryPoolEscrow;
     let secondaryPool;
@@ -164,6 +164,29 @@ contract("AUSC Test", function (accounts) {
         await ausc.balanceOf(secondaryPoolEscrow.address),
         treasuryBudget + decimalNines
       );
+    });
+
+    it.only("positive real rebase", async function () {
+      await rebaser.setAUSCPrice("1047953000000000000");
+      await rebaser.setXAUPrice("672916050000000000");
+      await rebaser.recordPrice();
+      // increase time to get the pending price projected
+      // and to get rebase after 24 hours
+      await time.increase(24 * 3600);
+      await rebaser.recordPrice();
+      await ausc.transfer(owner, "1", { from: owner });
+      await ausc.transfer(owner, "1", { from: owner });
+      console.log((await ausc.totalSupply()).toString());
+      console.log((await ausc.balanceOf(owner)).toString());
+      console.log((await ausc.balanceOf(treasury)).toString());
+      console.log(
+        (await ausc.balanceOf(secondaryPoolEscrow.address)).toString()
+      );
+      console.log(treasury);
+      console.log(secondaryPoolEscrow.address);
+      console.log(ausc.address);
+      console.log(owner);
+      assert.isTrue(false);
     });
 
     it("negative rebase", async function () {
