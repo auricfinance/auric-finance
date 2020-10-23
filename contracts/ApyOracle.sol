@@ -32,24 +32,31 @@ contract ApyOracle {
     uint256 howManyWeeks,
     address pool) public view returns (uint256) {
     address[] memory p = new address[](3);
-    p[0] = stakeToken;
     p[1] = weth;
     p[2] = usdc;
     p[0] = ausc;
     uint256[] memory auscPriceAmounts = IUniswapRouterV2(oracle).getAmountsOut(1e18, p);
     uint256 poolBalance = IERC20(stakeToken).balanceOf(pool);
     uint256 stakeTokenPrice = 1000000;
+    p[0] = stakeToken;
     if (stakeToken != usdc) {
       if (isUni) {
         stakeTokenPrice = getUniPrice(IUniswapV2Pair(stakeToken));
       } else {
-        uint256[] memory stakePriceAmounts = IUniswapRouterV2(oracle).getAmountsOut(1e18, p);
+        uint256 unit = 10 ** uint256(ERC20Detailed(stakeToken).decimals());
+        uint256[] memory stakePriceAmounts = IUniswapRouterV2(oracle).getAmountsOut(unit, p);
         stakeTokenPrice = stakePriceAmounts[2];
       }
     }
-    return 1e8 * (
-      auscPriceAmounts[2] * incentive * (52 / howManyWeeks)
+    uint256 temp = (
+      1e8 * auscPriceAmounts[2] * incentive * (52 / howManyWeeks)
     ) / (poolBalance * stakeTokenPrice);
+    if (ERC20Detailed(stakeToken).decimals() == uint8(18)) {
+      return temp;
+    } else {
+      uint256 divideBy = 10 ** uint256(18 - ERC20Detailed(stakeToken).decimals());
+      return temp / divideBy;
+    }
   }
 
   function getUniPrice(IUniswapV2Pair unipair) public view returns (uint256) {
