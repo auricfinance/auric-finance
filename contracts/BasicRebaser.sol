@@ -29,16 +29,14 @@ contract BasicRebaser {
   uint256 public averageXAU;
   uint256 public averageAUSC;
   uint256 public lastUpdate;
-  // uint256 public frequency = 1 hours;
-  uint256 public frequency = 5 minutes;
+  uint256 public frequency = 1 hours;
   uint256 public counter = 0;
   uint256 public epoch = 1;
   address public secondaryPool;
   address public governance;
 
-  uint256 public lastRebase = 0;
-  // uint256 public constant REBASE_DELAY = 24 hours;
-  uint256 public constant REBASE_DELAY = 10 minutes;
+  uint256 public nextRebase = 0;
+  uint256 public constant REBASE_DELAY = 12 hours;
 
   modifier onlyGov() {
     require(msg.sender == governance, "only gov");
@@ -48,8 +46,12 @@ contract BasicRebaser {
   constructor (address token, address _secondaryPool) public {
     ausc = token;
     secondaryPool = _secondaryPool;
-    lastRebase = block.timestamp;
     governance = msg.sender;
+  }
+
+  function setNextRebase(uint256 next) external onlyGov {
+    require(nextRebase == 0, "Only one time activation");
+    nextRebase = next;
   }
 
   function setGovernance(address account) external onlyGov {
@@ -122,9 +124,11 @@ contract BasicRebaser {
   }
 
   function rebase() public {
-    if (lastRebase.add(REBASE_DELAY) > block.timestamp) {
-      // do not rebase more than once per day
+    // We want to rebase only at 1pm UTC and 12 hours later
+    if (block.timestamp < nextRebase) {
       return;
+    } else {
+      nextRebase = nextRebase + REBASE_DELAY;
     }
 
     // only rebase if there is a 5% difference between the price of XAU and AUSC
@@ -153,7 +157,6 @@ contract BasicRebaser {
         emit NoSecondaryMint();
       }
       epoch++;
-      lastRebase = block.timestamp;
     } else if (averageAUSC < lowThreshold) {
       // AUSC is too cheap, this is a negative rebase decreasing the supply
       uint256 currentSupply = IERC20(ausc).totalSupply();
@@ -164,10 +167,42 @@ contract BasicRebaser {
       uint256 delta = uint256(BASE).sub(desiredSupply.mul(BASE).div(currentSupply));
       IAUSC(ausc).rebase(epoch, delta, false);
       epoch++;
-      lastRebase = block.timestamp;
     } else {
       // else the price is within bounds
       emit NoRebaseNeeded();
+    }
+  }
+
+  /**
+  * Calculates how a rebase would look if it was triggered now.
+  */
+  function calculateRealTimeRebase() public view returns (uint256, uint256) {
+    // only rebase if there is a 5% difference between the price of XAU and AUSC
+    uint256 highThreshold = averageXAU.mul(105).div(100);
+    uint256 lowThreshold = averageXAU.mul(95).div(100);
+
+    if (averageAUSC > highThreshold) {
+      // AUSC is too expensive, this is a positive rebase increasing the supply
+      uint256 currentSupply = IERC20(ausc).totalSupply();
+      uint256 desiredSupply = currentSupply.mul(averageAUSC).div(averageXAU);
+      uint256 secondaryPoolBudget = desiredSupply.sub(currentSupply).mul(10).div(100);
+      desiredSupply = desiredSupply.sub(secondaryPoolBudget);
+
+      // Cannot underflow as desiredSupply > currentSupply, the result is positive
+      // delta = (desiredSupply / currentSupply) * 100 - 100
+      uint256 delta = desiredSupply.mul(BASE).div(currentSupply).sub(BASE);
+      return (delta, secondaryPool == address(0) ? 0 : secondaryPoolBudget);
+    } else if (averageAUSC < lowThreshold) {
+      // AUSC is too cheap, this is a negative rebase decreasing the supply
+      uint256 currentSupply = IERC20(ausc).totalSupply();
+      uint256 desiredSupply = currentSupply.mul(averageAUSC).div(averageXAU);
+
+      // Cannot overflow as desiredSupply > currentSupply
+      // delta = 100 - (desiredSupply / currentSupply) * 100
+      uint256 delta = uint256(BASE).sub(desiredSupply.mul(BASE).div(currentSupply));
+      return (delta, 0);
+    } else {
+      return (0,0);
     }
   }
 
