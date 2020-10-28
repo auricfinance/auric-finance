@@ -144,14 +144,26 @@ contract.only("AUSC Test", function (accounts) {
     });
 
     it("positive rebase", async function () {
+      assert.equal(await rebaser.nextRebase(), 0);
+      // activate
+      let latestTime = await time.latest();
+      await rebaser.setNextRebase(parseInt(latestTime) + 3600);
       await rebaser.setAUSCPrice(20);
       await rebaser.setXAUPrice(10);
       await rebaser.recordPrice();
+      // no rebase at first
+      await rebaser.rebase();
+      assert.equal((await rebaser.nextRebase()).toNumber(), parseInt(latestTime) + 3600);
+      assert.equal(await ausc.totalSupply(), supply + decimalZeroes);
+      assert.equal(await ausc.balanceOf(owner), supply + decimalZeroes);
+
       // increase time to get the pending price projected
       // and to get rebase after 24 hours
-      await time.increase(24 * 3600);
+      await time.increase(3600);
       await rebaser.recordPrice();
+      let nextRebase = await rebaser.nextRebase();
       await rebaser.rebase();
+      assert.equal((await rebaser.nextRebase()).toNumber(), nextRebase.toNumber() + 12 * 3600);
       const twice = "60000000";
       const ownerBalance = "57000000";
       const treasuryBudget = "2999999"; // -1 rounding error
@@ -164,9 +176,19 @@ contract.only("AUSC Test", function (accounts) {
         await ausc.balanceOf(secondaryPoolEscrow.address),
         treasuryBudget + decimalNines
       );
+
+      // no second rebase
+      await rebaser.rebase();
+      assert.equal((await rebaser.nextRebase()).toNumber(), nextRebase.toNumber() + 12 * 3600);
+      assert.equal(await ausc.totalSupply(), twice + decimalZeroes);
+      assert.equal(await ausc.balanceOf(owner), ownerBalance + decimalZeroes);
+      assert.equal(
+        await ausc.balanceOf(secondaryPoolEscrow.address),
+        treasuryBudget + decimalNines
+      );
     });
 
-    it.only("positive real rebase", async function () {
+    it("positive real rebase", async function () {
       await rebaser.setAUSCPrice("1047953000000000000");
       await rebaser.setXAUPrice("672916050000000000");
       await rebaser.recordPrice();
@@ -186,7 +208,27 @@ contract.only("AUSC Test", function (accounts) {
       console.log(secondaryPoolEscrow.address);
       console.log(ausc.address);
       console.log(owner);
-      assert.isTrue(false);
+    });
+
+    it("positive real rebase 2", async function () {
+      await rebaser.setAUSCPrice("45853000000000000");
+      await rebaser.setXAUPrice("609590560000000000");
+      await rebaser.recordPrice();
+      await time.increase(3600);
+      await rebaser.recordPrice();
+      assert.equal((await rebaser.nextRebase()).toNumber(), 0);
+      await ausc.transfer(owner, "1", { from: owner });
+      assert.equal((await rebaser.nextRebase()).toNumber(), 12 * 3600);
+      console.log((await ausc.totalSupply()).toString());
+      console.log((await ausc.balanceOf(owner)).toString());
+      console.log((await ausc.balanceOf(treasury)).toString());
+      console.log(
+        (await ausc.balanceOf(secondaryPoolEscrow.address)).toString()
+      );
+      console.log(treasury);
+      console.log(secondaryPoolEscrow.address);
+      console.log(ausc.address);
+      console.log(owner);
     });
 
     it("negative rebase", async function () {
