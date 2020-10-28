@@ -75,5 +75,25 @@ contract ApyOracle {
     uint256[] memory prices = IUniswapRouterV2(oracle).getAmountsOut(1e18, p);
     return prices[1] * singlePriceInWeth / 1e18; // price of single token in USDC
   }
+
+  function getTvl(address pool, address token, bool isUniswap) public view returns (uint256) {
+    uint256 balance = IERC20(token).balanceOf(pool);
+    uint256 decimals = ERC20Detailed(token).decimals();
+    if (balance == 0) {
+      return 0;
+    }
+    if (!isUniswap) {
+      address[] memory p = new address[](3);
+      p[1] = weth;
+      p[2] = usdc;
+      p[0] = token;
+      uint256 one = 10 ** decimals;
+      uint256[] memory amounts = IUniswapRouterV2(oracle).getAmountsOut(one, p);
+      return amounts[2] * balance / (10 ** decimals);
+    } else {
+      uint256 price = getUniPrice(IUniswapV2Pair(token));
+      return price * balance / (10 ** decimals);
+    }
+  }
 }
 
