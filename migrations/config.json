@@ -1,11 +1,82 @@
 {
-  "ausc" : "0x7610e68007a2317B2f3E247648CEf23b042C7303",
-  "secondaryPool" : "0x6B5F618186F7fC2A04B7343B369aDCBB40Be90Ab",
-  "usdc" : "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-  "timelock" : "0x8B21921A0FA2B31Efad2a4D70afA5Af3eaAe24c0",
-  "escrowToken" : "0x61ecae6d6872118c2890D0e354D6e7bbe02ba175",
-  "pool" : "0xC50225bfDBeAD301f34d7684d1D6dC3Ee56A6DD1",
-  "development" : "0x8a560E75BaFb16348dDdec344F6661A867cAd322",
-  "governance" : "0x8506a18D1Ae8FB4B11be61B7f6F9f3179150a12c",
-  "dao" : "0xAFeC8bACFE000dd9aEc150eA325871adE6CdAE2B"
+  "development": "0x5a2FcafF25FE0af95eE988213a7554779E8454D0",
+  "governance": "0x4180AD5F8e356b2554a81fE5D70D4142F1214E2F",
+  "dao": "0x6961513652333353DD2171f892916A3149CC69ac",
+  "ausc": "0x1c7BBADc81E18F7177A95eb1593e5f5f35861B10",
+  "uniswapToken": "0x95a5543111343ab2a66a06bc663a1170acf050b9",
+  "secondaryPoolEscrow": "0xAd85eb3A26c4408ab51745d262567f867cE59708",
+  "rewarder" : "0xaD94b363ee99b413aAaf6E0b26fB666FFD56d731",
+  "rebaser" : "0xDE35D5F592002378C393984c5aF8fe5Bc454e97b",
+  "timelock": "0xf588903bcc1D6a9D13Fc624b2553479FEe8252d2",
+  "governor": "0x4f022d895E4cE277d0f54Db7e22660E528BfB5b4",
+  "controller" : "0x18eDCF68ed85D39614CA96018466bBC7843391d6",
+  "escrowToken": "",
+  "pool": "",
+  "secondaryEscrowToken": "",
+
+  "farmsToDeploy": [
+    {
+      "name": "SNX-ETH",
+      "token": "0x43ae24960e5534731fc831386c07755a2dc33d47"
+    },
+    {
+      "name": "AMPLE-ETH",
+      "token": "0xc5be99a02c6857f9eac67bbce58df5572498f40c"
+    },
+    {
+      "name": "YAM-ETH",
+      "token": "0xe2aAb7232a9545F29112f9e6441661fD6eEB0a5d"
+    },
+    {
+      "name": "YFI-ETH",
+      "token": "0x2fdbadf3c4d5a8666bc06645b8358ab803996e28"
+    },
+    {
+      "name": "REN-ETH",
+      "token": "0x8bd1661da98ebdd3bd080f0be4e6d9be8ce9858c"
+    },
+    {
+      "name": "COMP-ETH",
+      "token": "0xcffdded873554f362ac02f8fb1f02e5ada10516f"
+    },
+    {
+      "name": "AAVE-ETH",
+      "token": "0xdfc14d2af169b0d36c4eff567ada9b2e0cae044f"
+    },
+    {
+      "name": "CRV-ETH",
+      "token": "0x3dA1313aE46132A397D90d95B1424A9A7e3e0fCE"
+    },
+    {
+      "name": "UMA-ETH",
+      "token": "0x88d97d199b9ed37c29d846d00d443de980832a22"
+    },
+    {
+      "name": "LINK-ETH",
+      "token": "0xa2107fa5b38d9bbd2c461d6edf11b11a50f6b974"
+    },
+    {
+      "name": "ANT-ETH",
+      "token": "0xfa19de406e8f5b9100e4dd5cad8a503a6d686efe"
+    },
+    {
+      "name": "UNI-ETH",
+      "token": "0xd3d2e2692501a5c9ca623199d38826e513033a17"
+    },
+    {
+      "name": "PICKLE-ETH",
+      "token": "0xdc98556ce24f007a5ef6dc1ce96322d65832a819"
+    },
+    { "name": "WBTC", "token": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599" },
+    { "name": "sBTC", "token": "0xfe18be6b3bd88a2d2a7f928d00292e7a9963cfc6" },
+    { "name": "yUSDC", "token": "0x5dbcf33d8c2e976c6b560249878e6f1491bca25c" },
+    { "name": "USDC", "token": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48" },
+    { "name": "USDT", "token": "0xdac17f958d2ee523a2206206994597c13d831ec7" },
+    { "name": "sUSD", "token": "0x57ab1ec28d129707052df4df418d58a2d46d5f51" },
+    { "name": "DAI", "token": "0x6b175474e89094c44da98b954eedeac495271d0f" },
+    { "name": "AUSCM-ETH", "token": "0x95a5543111343ab2a66a06bc663a1170acf050b9" }
+  ],
+
+  "farmInitialization": [
+  ]
 }
