@@ -38,7 +38,8 @@ of a warm up period after the deployment.
 Both the price checkpointing method and rebase are triggered with every token ERC20
 action with AUSCM, but only if the action is performed by an externally owned account.
 The monetary policy ensures that price checkpoint is recorded at most once every hour, and 
-rebase occurs once every 24 hours at most. Given these triggers, a rebaser cannot be
+rebase occurs once every 12 hours (at most, the token does not rebase if it is not needed). 
+Given these triggers, a rebaser cannot be
 an externally owned account. It if ever becomes an externally owned account, the transfers
 of the token will start failing. 
 
