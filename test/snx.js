@@ -14,6 +14,7 @@ contract("Rewards Test", function (accounts) {
   const symbol = "AUSC";
   const supply = "30000000";
   const halfSupply = "15000000";
+  const one = "1";
   const decimalZeroes = "000000000000000000";
   let ausc;
   let lp;
@@ -138,17 +139,20 @@ contract("Rewards Test", function (accounts) {
       await escrowToken.transfer(pool.address, supply + decimalZeroes, {
         from: owner,
       });
-      await pool.notifyRewardAmount(supply + decimalZeroes, { from: notifier });
+      await pool.notifyRewardAmount(one + decimalZeroes, { from: notifier });
       const stake = "10000";
       await lp.approve(pool.address, stake, { from: owner });
       await pool.stake(stake, { from: owner });
       let previous = "0";
       for (let i = 0; i < 3; i++) {
-        await time.increase(3600);
+        await time.increase(3);
         let earned = await pool.earned(owner, { from: owner });
+        console.log(previous.toString());
+        console.log(earned.toString());
         assert.isTrue(earned.toString() > previous);
         previous = earned.toString();
       }
+      await time.increase(15 * 24 * 3600);
       await pool.exit({ from: owner });
       assert.isTrue((await ausc.balanceOf(owner)).toString() > "0");
       assert.isTrue(
@@ -157,6 +161,7 @@ contract("Rewards Test", function (accounts) {
       console.log(secondaryEscrowToken.address);
       console.log(secondaryPool.address);
       console.log(secondaryEscrow.address);
+      console.log((await secondaryEscrowToken.balanceOf(secondaryPool.address)).toString());
       assert.isTrue(
         (
           await secondaryEscrowToken.balanceOf(secondaryPool.address)
@@ -171,10 +176,10 @@ contract("Rewards Test", function (accounts) {
       await escrowToken.transfer(pool.address, supply + decimalZeroes, {
         from: owner,
       });
-      await pool.notifyRewardAmount(halfSupply + decimalZeroes, {
+      await pool.notifyRewardAmount(one + decimalZeroes, {
         from: notifier,
       });
-      await pool.notifyRewardAmount(halfSupply + decimalZeroes, {
+      await pool.notifyRewardAmount(one + decimalZeroes, {
         from: notifier,
       });
       const stake = "10000";
@@ -182,11 +187,14 @@ contract("Rewards Test", function (accounts) {
       await pool.stake(stake, { from: owner });
       let previous = "0";
       for (let i = 0; i < 3; i++) {
-        await time.increase(3600);
+        await time.increase(1);
         let earned = await pool.earned(owner, { from: owner });
-        assert.isTrue(earned.toString() > previous);
+        console.log(previous.toString());
+        console.log(earned.toString());
+        assert.isTrue(earned.toString() > previous.toString());
         previous = earned.toString();
       }
+      await time.increase(15 * 24 * 3600);
       console.log((await pool.earnedAusc(owner)).toString());
       await pool.exit({ from: owner });
       assert.isTrue((await ausc.balanceOf(owner)).toString() > "0");

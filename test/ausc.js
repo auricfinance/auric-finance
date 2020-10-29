@@ -8,7 +8,7 @@ const PoolEscrow = artifacts.require("PoolEscrow");
 const AuricRewards = artifacts.require("AuricRewards");
 const SecondaryEscrowToken = artifacts.require("SecondaryEscrowToken");
 
-contract.only("AUSC Test", function (accounts) {
+contract("AUSC Test", function (accounts) {
   const owner = accounts[0];
   const treasury = accounts[1];
   const name = "AUSCM";
@@ -92,7 +92,7 @@ contract.only("AUSC Test", function (accounts) {
     });
   });
 
-  describe.only("Rebasing", function () {
+  describe("Rebasing", function () {
     let rebaser;
     let secondaryPoolEscrow;
     let secondaryPool;
