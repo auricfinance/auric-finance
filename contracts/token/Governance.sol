@@ -120,7 +120,7 @@ contract GovernanceToken is TokenInterface {
         internal
     {
         address currentDelegate = _delegates[delegator];
-        uint256 delegatorBalance = _auscBalances[delegator]; // balance of underlying YAMs (not scaled);
+        uint256 delegatorBalance = _auscBalances[delegator]; // balance of underlying AUSCMs (not scaled);
         _delegates[delegator] = delegatee;
 
         emit DelegateChanged(delegator, currentDelegate, delegatee);

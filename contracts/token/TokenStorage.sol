@@ -39,7 +39,7 @@ contract TokenStorage {
   address public rebaser;
 
   /**
-   * @notice Total supply of YAMs
+   * @notice Total supply of AUSCMs
    */
   uint256 public totalSupply;
 

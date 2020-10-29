@@ -126,13 +126,13 @@ contract AUSCToken is GovernanceToken {
   function _burn(address from, uint256 amount)
   internal
   {
-    // increase totalSupply
+    // decrease totalSupply
     totalSupply = totalSupply.sub(amount);
 
     // get underlying value
     uint256 auscValue = fragmentToAusc(amount);
 
-    // increase initSupply
+    // decrease initSupply
     initSupply = initSupply.sub(auscValue);
 
     // make sure the burn didnt push maxScalingFactor too low
