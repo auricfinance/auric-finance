@@ -16,6 +16,8 @@ contract BasicRebaser {
   event NoUpdateAUSC();
   event NoSecondaryMint();
   event NoRebaseNeeded();
+  event StillCold();
+  event NotInitialized();
 
   uint256 public constant BASE = 1e18;
   uint256 public constant WINDOW_SIZE = 12;
@@ -124,6 +126,15 @@ contract BasicRebaser {
   }
 
   function rebase() public {
+    // make public rebasing only after initialization
+    if (nextRebase == 0 && msg.sender != governance) {
+      emit NotInitialized();
+      return;
+    }
+    if (counter <= WINDOW_SIZE && msg.sender != governance) {
+      emit StillCold();
+      return;
+    }
     // We want to rebase only at 1pm UTC and 12 hours later
     if (block.timestamp < nextRebase) {
       return;

@@ -217,8 +217,14 @@ contract("AUSC Test", function (accounts) {
       await time.increase(3600);
       await rebaser.recordPrice();
       assert.equal((await rebaser.nextRebase()).toNumber(), 0);
+      // not rebasing, not initialized
       await ausc.transfer(owner, "1", { from: owner });
-      assert.equal((await rebaser.nextRebase()).toNumber(), 12 * 3600);
+      assert.equal((await rebaser.nextRebase()).toNumber(), 0);
+      // init 
+      let firstRebase = (100 + parseInt(await time.latestBlock()));
+      await rebaser.setNextRebase(firstRebase, {from : owner});
+      await time.increase(100);
+      await ausc.transfer(owner, "1", { from: owner });
       console.log((await ausc.totalSupply()).toString());
       console.log((await ausc.balanceOf(owner)).toString());
       console.log((await ausc.balanceOf(treasury)).toString());
